@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OrthoPlanner — Surgical Planning System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root{--bg:#f0f2f5;--surface:#fff;--surface2:#f7f8fa;--border:#e2e5ea;--border2:#c8cdd6;--text:#1a1d23;--text2:#4a5060;--text3:#8a909e;--accent:#1e4d8c;--accent-light:#e8eef7;--accent2:#2a6b4a;--accent2-light:#e6f3ec;--danger:#c0392b;--warning:#e67e22;--radius:10px;--radius-sm:6px;--shadow:0 1px 3px rgba(0,0,0,.08),0 4px 12px rgba(0,0,0,.05)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;min-height:100vh}
+header{background:var(--accent);color:#fff;padding:0 1.5rem;display:flex;align-items:center;height:56px;gap:.75rem;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.logo{font-size:15px;font-weight:600;display:flex;align-items:center;gap:7px;white-space:nowrap}
+.logo svg{width:24px;height:24px;opacity:.9;flex-shrink:0}
+.tagline{font-size:11px;color:rgba(255,255,255,.6);margin-left:3px}
+.nav-steps{margin-left:auto;display:flex;gap:3px;flex-wrap:wrap}
+.nav-step{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:500;color:rgba(255,255,255,.6);cursor:pointer;transition:all .15s;border:1px solid transparent;white-space:nowrap}
+.nav-step:hover{color:#fff;border-color:rgba(255,255,255,.3)}
+.nav-step.active{background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.3)}
+.nav-step.done::before{content:'✓ '}
+.nav-step.done{color:rgba(255,255,255,.85)}
+.main{max-width:1100px;margin:0 auto;padding:2rem 1.5rem 5rem}
+.step{display:none}.step.active{display:block}
+.step-header{margin-bottom:1.5rem}
+.step-label{font-size:11px;font-weight:600;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}
+.step-title{font-size:21px;font-weight:600;letter-spacing:-.3px}
+.step-subtitle{font-size:13px;color:var(--text2);margin-top:3px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1rem;box-shadow:var(--shadow)}
+.card-title{font-size:13px;font-weight:600;margin-bottom:1rem;display:flex;align-items:center;gap:8px}
+.badge{background:var(--accent-light);color:var(--accent);font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1rem}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group label{font-size:12px;font-weight:500;color:var(--text2)}
+.form-group input,.form-group select,.form-group textarea{padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(30,77,140,.1)}
+.form-group textarea{resize:vertical;min-height:78px}
+.form-group.full{grid-column:1/-1}
+.btn{padding:8px 17px;border-radius:var(--radius-sm);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;border:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:#16396e}
+.btn-secondary{background:var(--surface);color:var(--text);border:1px solid var(--border2)}.btn-secondary:hover{background:var(--surface2)}
+.btn-success{background:var(--accent2);color:#fff}.btn-success:hover{background:#1e5237}
+.btn-sm{padding:5px 11px;font-size:12px}
+.btn-row{display:flex;gap:8px;margin-top:1.5rem;align-items:center;flex-wrap:wrap}
+.btn-row .spacer{flex:1}
+/* Imaging */
+.upload-zone{border:2px dashed var(--border2);border-radius:var(--radius);padding:1.75rem;text-align:center;cursor:pointer;transition:all .15s;color:var(--text3)}
+.upload-zone:hover,.upload-zone.dragover{border-color:var(--accent);background:var(--accent-light)}
+.upload-zone svg{width:34px;height:34px;margin-bottom:7px;opacity:.4}
+.upload-zone p{font-size:13px}.upload-zone small{font-size:11px;margin-top:3px;display:block}
+.image-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:10px}
+.image-thumb{position:relative;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;aspect-ratio:1;background:var(--surface2)}
+.image-thumb img{width:100%;height:100%;object-fit:cover}
+.img-label{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.6);color:#fff;font-size:10px;padding:3px 5px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.img-remove{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.65);color:#fff;border:none;border-radius:50%;width:19px;height:19px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px}
+/* Instruments */
+.filter-bar{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:1rem}
+.inst-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:11px}
+.inst-card{border:2px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:all .15s;position:relative;background:var(--surface)}
+.inst-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 16px rgba(30,77,140,.15)}
+.inst-card.sel{border-color:var(--accent);box-shadow:0 0 0 3px rgba(30,77,140,.12)}
+.chk{position:absolute;top:6px;right:6px;width:21px;height:21px;border-radius:50%;border:2px solid var(--border2);background:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;z-index:2;transition:all .15s}
+.inst-card.sel .chk{background:var(--accent);border-color:var(--accent);color:#fff}
+.inst-img{width:100%;height:105px;background:#ecf3e8;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.inst-img img{width:100%;height:100%;object-fit:contain;padding:5px;background:#f0f5ec}
+.inst-img .no-img{font-size:26px;color:var(--text3)}
+.inst-info{padding:8px 10px 10px}
+.inst-name{font-size:11px;font-weight:600;color:var(--text);line-height:1.35}
+.inst-cat-label{font-size:10px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:.04em}
+.sel-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500}
+.pill-blue{background:var(--accent-light);color:var(--accent)}
+/* Approach */
+.ap-search-row{display:flex;gap:8px;margin-bottom:1rem}
+.ap-search-row input{flex:1}
+.ap-list{display:flex;flex-direction:column;gap:5px;max-height:310px;overflow-y:auto}
+.ap-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;background:var(--surface)}
+.ap-item:hover{border-color:var(--accent);background:var(--accent-light)}
+.ap-item.sel{border-color:var(--accent2);background:var(--accent2-light)}
+.ap-name{font-size:13px;font-weight:500;flex:1}
+.ap-region{font-size:11px;color:var(--text3)}
+/* Approach sections */
+.ap-sections{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
+@media(max-width:640px){.ap-sections{grid-template-columns:1fr}}
+.ap-sec{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px}
+.ap-sec h4{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.ap-sec h4 .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.ap-sec p{font-size:13px;line-height:1.6;color:var(--text)}
+.dot-blue{background:var(--accent)}.dot-red{background:#c0392b}.dot-orange{background:#e67e22}.dot-teal{background:#16a085}.dot-purple{background:#8e44ad}.dot-green{background:#27ae60}.dot-navy{background:#1e4d8c}
+/* Plan */
+.plan-ta{width:100%;min-height:210px;padding:13px;border:1px solid var(--border2);border-radius:var(--radius);font-family:inherit;font-size:14px;line-height:1.7;resize:vertical;color:var(--text);background:var(--surface);outline:none}
+.plan-ta:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(30,77,140,.1)}
+/* Rehab */
+.rph{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:9px;overflow:hidden}
+.rph-head{display:flex;align-items:center;gap:11px;padding:9px 15px;background:var(--surface2);border-bottom:1px solid var(--border)}
+.ph-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;flex-shrink:0}
+.ph1{background:#c0392b}.ph2{background:#e67e22}.ph3{background:#2980b9}.ph4{background:#27ae60}
+.rph-head h3{font-size:12px;font-weight:600;flex:1}
+.rph-timing{font-size:11px;color:var(--text3)}
+.rph-body{padding:11px 15px}
+/* AI loading */
+.ai-load{display:flex;align-items:center;gap:9px;padding:10px 13px;background:var(--accent-light);border:1px solid #c0d0e8;border-radius:var(--radius-sm);font-size:13px;color:var(--accent);margin:10px 0}
+.spin{width:15px;height:15px;border:2px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Progress */
+.prog-bar{height:3px;background:var(--border);border-radius:2px;margin-bottom:1.75rem;overflow:hidden}
+.prog-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s}
+/* Summary */
+.sum-sec{margin-bottom:1.5rem}
+.sum-sec h3{font-size:11px;font-weight:600;color:var(--accent);margin-bottom:9px;padding-bottom:5px;border-bottom:2px solid var(--accent-light);text-transform:uppercase;letter-spacing:.05em}
+.sum-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:7px}
+.sf{display:flex;flex-direction:column;gap:2px}
+.sf-lbl{font-size:11px;color:var(--text3);font-weight:500}
+.sf-val{font-size:13px;font-weight:500}
+.ai-content{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px;font-size:13px;line-height:1.7;white-space:pre-wrap}
+/* Export panel */
+.exp-panel{background:linear-gradient(135deg,#1e4d8c 0%,#2a6b4a 100%);border-radius:var(--radius);padding:1.5rem;color:#fff;margin-bottom:1rem}
+.exp-panel h3{font-size:15px;font-weight:600;margin-bottom:5px}
+.exp-panel p{font-size:13px;opacity:.82;margin-bottom:1rem}
+.exp-btns{display:flex;gap:8px;flex-wrap:wrap}
+.exp-btn{padding:8px 15px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;border:1px solid rgba(255,255,255,.38);background:rgba(255,255,255,.14);color:#fff;display:inline-flex;align-items:center;gap:6px;font-family:inherit}
+.exp-btn:hover{background:rgba(255,255,255,.26)}
+/* Toast */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--accent2);color:#fff;padding:10px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;opacity:0;transition:opacity .3s;z-index:9999;pointer-events:none;max-width:300px}
+.toast.show{opacity:1}
+@media print{header,.btn-row,.prog-bar,.exp-panel,.filter-bar{display:none!important}.step{display:block!important}body{background:#fff}.card{box-shadow:none;border:1px solid #ddd}.ap-sections{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 32 32" fill="none"><rect x="2" y="13" width="28" height="6" rx="3" fill="white" opacity=".9"/><rect x="13" y="2" width="6" height="28" rx="3" fill="white" opacity=".9"/></svg>
+    OrthoPlanner <span class="tagline">Surgical Planning System</span>
+  </div>
+  <nav class="nav-steps">
+    <div class="nav-step active" onclick="goTo(1)" id="nav1">Patient</div>
+    <div class="nav-step" onclick="goTo(2)" id="nav2">Imaging</div>
+    <div class="nav-step" onclick="goTo(3)" id="nav3">Instruments</div>
+    <div class="nav-step" onclick="goTo(4)" id="nav4">Approach</div>
+    <div class="nav-step" onclick="goTo(5)" id="nav5">Plan</div>
+    <div class="nav-step" onclick="goTo(6)" id="nav6">Rehab</div>
+    <div class="nav-step" onclick="goTo(7)" id="nav7">Summary</div>
+  </nav>
+</header>
+
+<div class="main">
+<div class="prog-bar"><div class="prog-fill" id="pBar" style="width:14%"></div></div>
+
+<!-- STEP 1: PATIENT -->
+<div class="step active" id="step1">
+  <div class="step-header"><div class="step-label">Step 1 of 7</div><div class="step-title">Patient Information</div><div class="step-subtitle">Enter patient credentials and injury details</div></div>
+  <div class="card">
+    <div class="card-title">Demographics <span class="badge">Required</span></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Full Name</label><input id="pt-name" placeholder="e.g. Ahmed Mohamed"></div>
+      <div class="form-group"><label>MRN</label><input id="pt-mrn" placeholder="e.g. MRN-2024-001"></div>
+      <div class="form-group"><label>Age</label><input type="number" id="pt-age" placeholder="45" min="0" max="130"></div>
+      <div class="form-group"><label>Sex</label><select id="pt-sex"><option value="">Select...</option><option>Male</option><option>Female</option><option>Other</option></select></div>
+      <div class="form-group"><label>Date of Injury</label><input type="date" id="pt-doi"></div>
+      <div class="form-group"><label>Planned Surgery Date</label><input type="date" id="pt-dos"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Injury & Clinical Details</div>
+    <div class="form-grid">
+      <div class="form-group full"><label>Mechanism of Injury</label><textarea id="pt-moi" placeholder="e.g. High-speed RTA, direct blow to left femur..."></textarea></div>
+      <div class="form-group full"><label>Diagnosis</label><textarea id="pt-diagnosis" placeholder="e.g. Closed comminuted displaced midshaft femur fracture (AO/OTA 32-C2)..."></textarea></div>
+      <div class="form-group full"><label>Planned Procedure</label><textarea id="pt-procedure" placeholder="e.g. Closed reduction and intramedullary nailing of left femur..."></textarea></div>
+    </div>
+  </div>
+  <div class="btn-row"><div class="spacer"></div><button class="btn btn-primary" onclick="goTo(2)">Next: Imaging →</button></div>
+</div>
+
+<!-- STEP 2: IMAGING -->
+<div class="step" id="step2">
+  <div class="step-header"><div class="step-label">Step 2 of 7</div><div class="step-title">Preoperative Imaging</div><div class="step-subtitle">Upload X-rays, CT scans, and any additional imaging studies</div></div>
+  <div class="card">
+    <div class="card-title">X-Rays / Radiographs <span class="badge">AP, Lateral, Oblique</span></div>
+    <div class="upload-zone" id="xz" onclick="document.getElementById('xi').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M12 8v8"/></svg>
+      <p>Click to upload X-rays or drag &amp; drop</p><small>JPEG, PNG — multiple files accepted</small>
+    </div>
+    <input type="file" id="xi" accept="image/*" multiple hidden onchange="addImgs(this,'xg','X-Ray')">
+    <div class="image-grid" id="xg"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">CT Scans <span class="badge">Upload as many slices as needed</span></div>
+    <div class="upload-zone" id="cz" onclick="document.getElementById('ci').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>
+      <p>Click to upload CT scans or drag &amp; drop</p><small>Axial, Coronal, Sagittal cuts</small>
+    </div>
+    <input type="file" id="ci" accept="image/*" multiple hidden onchange="addImgs(this,'cg','CT')">
+    <div class="image-grid" id="cg"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Additional Imaging <span class="badge">MRI, Bone Scan, Angio</span></div>
+    <div class="upload-zone" onclick="document.getElementById('mi').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 16l4-4 4 4 4-8 4 4"/><rect x="2" y="3" width="20" height="18" rx="2"/></svg>
+      <p>Any additional preoperative imaging</p><small>Other modalities</small>
+    </div>
+    <input type="file" id="mi" accept="image/*" multiple hidden onchange="addImgs(this,'mg','Other')">
+    <div class="image-grid" id="mg"></div>
+  </div>
+  <div class="btn-row"><button class="btn btn-secondary" onclick="goTo(1)">← Back</button><div class="spacer"></div><button class="btn btn-primary" onclick="goTo(3)">Next: Instruments →</button></div>
+</div>
+
+<!-- STEP 3: INSTRUMENTS -->
+<div class="step" id="step3">
+  <div class="step-header"><div class="step-label">Step 3 of 7</div><div class="step-title">Instrument Sets</div><div class="step-subtitle">Select required sets from the Aysam catalog — choose as many as needed</div></div>
+  <div class="card">
+    <div class="filter-bar" id="filterBar"></div>
+    <div class="inst-grid" id="instGrid"></div>
+  </div>
+  <div class="card" id="selCard" style="display:none">
+    <div class="card-title">Selected Sets <span class="badge" id="selCount">0</span></div>
+    <div class="sel-tags" id="selTags"></div>
+  </div>
+  <div class="btn-row"><button class="btn btn-secondary" onclick="goTo(2)">← Back</button><div class="spacer"></div><button class="btn btn-primary" onclick="goTo(4)">Next: Approach →</button></div>
+</div>
+
+<!-- STEP 4: APPROACH -->
+<div class="step" id="step4">
+  <div class="step-header"><div class="step-label">Step 4 of 7</div><div class="step-title">Surgical Approach</div><div class="step-subtitle">Search and select an approach to view the full structured breakdown</div></div>
+  <div class="card">
+    <div class="card-title">Search Surgical Approaches</div>
+    <div class="ap-search-row">
+      <input type="text" id="apSrch" placeholder="Search: hip, femur, tibia, humerus, knee, ankle, spine, radius, Watson-Jones, posterior..." oninput="searchAp(this.value)">
+      <button class="btn btn-primary" onclick="searchAp(document.getElementById('apSrch').value)">Search</button>
+    </div>
+    <div id="apWrap" style="display:none"><div class="ap-list" id="apList"></div></div>
+  </div>
+  <div class="card" id="apCard" style="display:none">
+    <div class="card-title" id="apTitle">Approach Details</div>
+    <div id="apContent"></div>
+  </div>
+  <div class="btn-row"><button class="btn btn-secondary" onclick="goTo(3)">← Back</button><div class="spacer"></div><button class="btn btn-primary" onclick="goTo(5)">Next: Surgical Plan →</button></div>
+</div>
+
+<!-- STEP 5: PLAN -->
+<div class="step" id="step5">
+  <div class="step-header"><div class="step-label">Step 5 of 7</div><div class="step-title">Surgical Execution Plan</div><div class="step-subtitle">AI-assisted plan generation or write manually — fully editable</div></div>
+  <div class="card">
+    <div class="card-title">AI Plan Generator</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:11px">Generates a starting plan from your patient data, diagnosis, and approach — edit freely below.</p>
+    <button class="btn btn-primary" onclick="genPlan()" id="genPlanBtn">✦ Generate Surgical Plan</button>
+    <div class="ai-load" id="planLoad" style="display:none"><div class="spin"></div><span>Generating surgical execution plan...</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Surgical Execution Plan <span class="badge">Editable</span></div>
+    <textarea class="plan-ta" id="surgPlan" placeholder="Write your surgical execution plan here...
+
+Include:
+• Fracture reduction technique
+• Implant selection rationale
+• Step-by-step fixation sequence
+• Intraoperative fluoroscopy goals
+• Anticipated difficulties &amp; contingencies
+• Blood loss estimation / tourniquet plan
+• Expected OR time"></textarea>
+  </div>
+  <div class="btn-row"><button class="btn btn-secondary" onclick="goTo(4)">← Back</button><div class="spacer"></div><button class="btn btn-primary" onclick="goTo(6)">Next: Rehabilitation →</button></div>
+</div>
+
+<!-- STEP 6: REHAB -->
+<div class="step" id="step6">
+  <div class="step-header"><div class="step-label">Step 6 of 7</div><div class="step-title">Postoperative Rehabilitation</div><div class="step-subtitle">Phase-based protocol tailored to the procedure and patient</div></div>
+  <div class="card">
+    <div class="card-title">AI Rehab Protocol Generator</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:11px">Generates a protocol based on your diagnosis and procedure — all fields remain editable.</p>
+    <button class="btn btn-primary" onclick="genRehab()" id="genRehabBtn">✦ Generate Rehab Protocol</button>
+    <div class="ai-load" id="rehabLoad" style="display:none"><div class="spin"></div><span>Generating rehabilitation protocol...</span></div>
+  </div>
+  <div class="rph"><div class="rph-head"><div class="ph-num ph1">1</div><h3>Phase 1 — Acute / Protection</h3><span class="rph-timing">Weeks 0–2</span></div><div class="rph-body"><div class="form-group"><label>Goals, Precautions &amp; Interventions</label><textarea id="rp1" style="min-height:85px" placeholder="Pain control, wound care, DVT prophylaxis, NWB status, neurovascular monitoring, edema management..."></textarea></div></div></div>
+  <div class="rph"><div class="rph-head"><div class="ph-num ph2">2</div><h3>Phase 2 — Early Mobilization</h3><span class="rph-timing">Weeks 2–6</span></div><div class="rph-body"><div class="form-group"><label>Goals, Precautions &amp; Interventions</label><textarea id="rp2" style="min-height:85px" placeholder="Gradual weight bearing progression, joint ROM exercises, muscle activation, gait training with assistive device..."></textarea></div></div></div>
+  <div class="rph"><div class="rph-head"><div class="ph-num ph3">3</div><h3>Phase 3 — Strengthening</h3><span class="rph-timing">Weeks 6–12</span></div><div class="rph-body"><div class="form-group"><label>Goals, Precautions &amp; Interventions</label><textarea id="rp3" style="min-height:85px" placeholder="Progressive resistance exercises, proprioception, balance, functional activities, radiographic callus assessment..."></textarea></div></div></div>
+  <div class="rph"><div class="rph-head"><div class="ph-num ph4">4</div><h3>Phase 4 — Return to Function</h3><span class="rph-timing">Months 3–6+</span></div><div class="rph-body"><div class="form-group"><label>Goals, Precautions &amp; Interventions</label><textarea id="rp4" style="min-height:85px" placeholder="Full weight bearing, sport/work-specific training, return-to-activity criteria, follow-up schedule, hardware removal if needed..."></textarea></div></div></div>
+  <div class="btn-row"><button class="btn btn-secondary" onclick="goTo(5)">← Back</button><div class="spacer"></div><button class="btn btn-primary" onclick="goTo(7)">View Summary →</button></div>
+</div>
+
+<!-- STEP 7: SUMMARY -->
+<div class="step" id="step7">
+  <div class="step-header"><div class="step-label">Step 7 of 7</div><div class="step-title">Surgical Plan Summary</div><div class="step-subtitle">Complete preoperative plan — review, export, save, or share</div></div>
+  <div class="exp-panel">
+    <h3>📤 Export &amp; Share</h3>
+    <p>Download as PDF, Word document, save locally in browser, or copy to share with your team</p>
+    <div class="exp-btns">
+      <button class="exp-btn" onclick="savePDF()">📄 Save as PDF</button>
+      <button class="exp-btn" onclick="saveWord()">📝 Export Word (.doc)</button>
+      <button class="exp-btn" onclick="saveLocal()">💾 Save to Browser</button>
+      <button class="exp-btn" onclick="loadLocal()">📂 Load Saved Plan</button>
+      <button class="exp-btn" onclick="shareData()">🔗 Copy Plan Data</button>
+      <button class="exp-btn" onclick="window.print()">🖨 Print</button>
+    </div>
+  </div>
+  <div class="card" id="sumContent"></div>
+  <div class="btn-row"><button class="btn btn-secondary" onclick="goTo(6)">← Back</button></div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Navigation ──
+function goTo(n){
+  if(n===7) buildSummary();
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+  document.getElementById('step'+n).classList.add('active');
+  document.querySelectorAll('.nav-step').forEach((el,i)=>{
+    el.classList.remove('active','done');
+    if(i+1===n) el.classList.add('active');
+    else if(i+1<n) el.classList.add('done');
+  });
+  document.getElementById('pBar').style.width=(n/7*100)+'%';
+  window.scrollTo(0,0);
+}
+
+// ── Imaging ──
+function addImgs(inp,gid,type){
+  const g=document.getElementById(gid);
+  Array.from(inp.files).forEach(f=>{
+    const url=URL.createObjectURL(f),d=document.createElement('div');
+    d.className='image-thumb';
+    d.innerHTML=`<img src="${url}"><div class="img-label">${type}: ${f.name.slice(0,20)}</div><button class="img-remove" onclick="this.parentElement.remove()">×</button>`;
+    g.appendChild(d);
+  }); inp.value='';
+}
+['xz','cz'].forEach(id=>{
+  const z=document.getElementById(id); if(!z) return;
+  z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('dragover')});
+  z.addEventListener('dragleave',()=>z.classList.remove('dragover'));
+  z.addEventListener('drop',e=>{
+    e.preventDefault(); z.classList.remove('dragover');
+    const gid=id==='xz'?'xg':'cg',tp=id==='xz'?'X-Ray':'CT';
+    Array.from(e.dataTransfer.files).filter(f=>f.type.startsWith('image/')).forEach(f=>{
+      const url=URL.createObjectURL(f),d=document.createElement('div');
+      d.className='image-thumb';
+      d.innerHTML=`<img src="${url}"><div class="img-label">${tp}: ${f.name.slice(0,20)}</div><button class="img-remove" onclick="this.parentElement.remove()">×</button>`;
+      document.getElementById(gid).appendChild(d);
+    });
+  });
+});
+
+// ── Instruments with real Aysam images ──
+const B='https://www.aysam.com.tr/aysam/';
+const INSTS=[
+  {id:'sf-lock',n:'Small Fragment Locking/NonLocking Plate',c:'plate',img:B+'SMALL-FRAGMENT-LOCKING-NON-LOCKING-PLATE-INSTRUMENT-SET-AYSAM-1.webp'},
+  {id:'lf-lock',n:'Large Fragment Locking/NonLocking Plate',c:'plate',img:B+'LARGE-FRAGMENT-LOCKING-NON-LOCKING-PLATE-INSTRUMENT-SET-1.webp'},
+  {id:'dhs-dcs',n:'DHS & DCS Plate',c:'plate',img:B+'DHS-DCS-PLATE-INSTRUMENT-SET-AYSAM-2.webp'},
+  {id:'pelvic',n:'Pelvic Reconstruction Plate',c:'plate',img:B+'PELVIC-RECONSTRUCTION-PLATE-INSTRUMENT-SET-AYSAM-1.webp'},
+  {id:'micro',n:'Micro Plate',c:'plate',img:B+'MICRO-PLATE-INSTRUMENT-SET-AYSAM.webp'},
+  {id:'mini-frag',n:'Mini Fragment Plate',c:'plate',img:B+'MINI-FRAGMENT-PLATE-INSTRUMENT-SET-AYSAM-1-scaled.webp'},
+  {id:'sternum',n:'Sternum Rib Plate',c:'plate',img:B+'STERNUM-RIB-PLATE-INSTRUMENT-SET-AYSAM-1.webp'},
+  {id:'blade',n:'3.5/4.5mm Angled Blade Plate',c:'plate',img:B+'35-45-mm-angled-blade-plate-instrument-set-aysam.webp'},
+  {id:'screw-rem',n:'Screw Removal',c:'screw',img:B+'SCREW-REMOVAL-INSTRUMENT-SET-AYSAM.webp'},
+  {id:'can-sm',n:'2.7/3.5/4.0mm Cannulated Screw',c:'screw',img:B+'27-35-40-MM-CANNULATED-SCREW-INSTRUMENT-SET-AYSAM-1.webp'},
+  {id:'can-lg',n:'4.5/6.5/7.3mm Cannulated Screw',c:'screw',img:B+'456573-MM-CANNULATED-SCREW-INSTRUMENT-SET-AYSAM-4.webp'},
+  {id:'headless',n:'3.0-6.5mm Headless Compression Screw',c:'screw',img:B+'30-35-40-50-65-MM-HEADLESS-COMPRESSION-SCREW-INSTRUMENT-SET-AYSAM.webp'},
+  {id:'herbert',n:'Herbert Screw',c:'screw',img:B+'HERBERT-VIDASI-ALET-SETI-AYSAM-1.webp'},
+  {id:'hum-nail',n:'Humeral IM Nail',c:'nail',img:B+'HUMERAL-INTRAMEDULLARY-NAIL-INSTRUMENT-SET-AYSAM-1.webp'},
+  {id:'fem-ante',n:'Femur Antegrade IM Nail',c:'nail',img:B+'FEMUR-ANTEGRADE-INTRAMEDULLARY-NAIL-INSTRUMENT-SET-AYSAM-3.webp'},
+  {id:'fem-retro',n:'Distal Femur Retrograde IM Nail',c:'nail',img:B+'DISTAL-FEMUR-RETROGRADE-INTRAMEDULLARY-NAIL-INSTRUMENT-SET-AYSAM-1.webp'},
+  {id:'fem-recon',n:'Femoral Short/Long Reconstruction IM Nail',c:'nail',img:B+'arocom-proximal-femur-antirotation-compression-intramedullary-nail-instrument-set-aysam.webp'},
+  {id:'apfna',n:'APFNA Femur Short Nail',c:'nail',img:B+'APFNA-FEMUR-SHORT-NAIL-INSTRUMENT-SET-AYSAM.webp'},
+  {id:'arocom',n:'AROCOM Proximal Femur Antirotation Compression IM Nail',c:'nail',img:B+'arocom-proximal-femur-antirotation-compression-intramedullary-nail-instrument-set-aysam.webp'},
+  {id:'antiro',n:'ANTIRO Proximal Femur Antirotation IM Nail',c:'nail',img:B+'antiro-proximal-femur-antirotation-intramedullary-nail-instrument-set-aysam-1.webp'},
+  {id:'tib-nail',n:'Tibial IM Nail',c:'nail',img:B+'INTRAMEDULLARY-NAIL-REMOVAL-INSTRUMENT-SET-AYSAM-4.webp'},
+  {id:'ant-tib',n:'ANT Tibial IM Nail',c:'nail',img:B+'ANT-TIBIAL-INTRAMEDULLARY-NAIL-INSTRUMENT-SET-AYSAM-2.webp'},
+  {id:'nail-rem',n:'IM Nail Removal',c:'nail',img:B+'INTRAMEDULLARY-NAIL-REMOVAL-INSTRUMENT-SET-AYSAM-5.webp'},
+  {id:'elastic',n:'Elastic Nail',c:'nail',img:B+'ELASTIC-NAIL-INSTRUMENT-SET-AYSAM-1.webp'},
+  {id:'new-fem',n:'New Femoral Reconstruction IM Nail',c:'nail',img:B+'NEW-FEMORAL-RECONSTRUCTION-INTRAMEDULLARY-NAIL-INSTRUMENT-SET-AYSAM.webp'},
+  {id:'spinal',n:'Spinal Pedicle Screw System',c:'spine',img:B+'SPINAL-PEDICLE-SCREW-SYSTEM-INSTRUMENT-SET-AYSAM-1.webp'},
+  {id:'ant-cerv',n:'Anterior Cervical Plate System',c:'spine',img:B+'ANTERIOR-CERVICAL-PLATE-SYSTEM-INSTRUMENT-SET-AYSAM-1.webp'},
+  {id:'post-cerv',n:'Posterior Cervical Fixation System',c:'spine',img:B+'POSTERIOR-CERVICAL-FIXATION-SYSTEM-INSTRUMENT-SET-AYSAM.webp'},
+  {id:'ant-thor',n:'Anterior Thoracic & Lumbar Plate System',c:'spine',img:B+'ANTERIOR-THORACIC-LUMBAR-PLATE-SYSTEM-INSTRUMENT-SET-AYSAM.webp'},
+  {id:'ayfix',n:'AYFIX External Fixator',c:'ext',img:B+'AYFIX-EXTERNAL-FIXATOR-INSTRUMENT-SET-AYSAM-2.webp'},
+  {id:'mini-rail',n:'Mini Rail External Fixator',c:'ext',img:B+'mini-rail-external-fixator-instrument-set-aysam.webp'},
+  {id:'sm-tub',n:'Small Tubular External Fixator',c:'ext',img:B+'small-tubular-external-fixator-instrument-set-aysam.webp'},
+  {id:'md-tub',n:'Medium Tubular External Fixator',c:'ext',img:B+'MEDIUM-TUBULAR-EXTERNAL-FIXATOR-INSTRUMENT-SET-AYSAM.jpg'},
+  {id:'lg-tub',n:'Large Tubular External Fixator',c:'ext',img:B+'LARGE-TUBULAR-EXTERNAL-FIXATOR-INSTRUMENT-SET-AYSAM.jpg'},
+  {id:'hybrid',n:'Hybrid External Fixator',c:'ext',img:B+'hibrit-eksternal-fiksator-alet-seti-aysam.webp'},
+  {id:'ilizarov',n:'Ilizarov Circular External Fixator',c:'ext',img:B+'ILIZAROV-CIRCULAR-EXTERNAL-FIXATOR-INSTRUMENT-SET-AYSAM.jpg'},
+  {id:'ped-iliz',n:'Pediatric Ilizarov Circular External Fixator',c:'ext',img:B+'pediatrik-ilizarov-sirkuler-eksternal-fiksator-alet-seti-aysam.webp'},
+  {id:'cable',n:'Cable Crimp Block',c:'other',img:B+'CABLE-CRIMP-BLOCK-INSTRUMENT-SET-AYSAM.webp'},
+  {id:'kirsch',n:'Kirschner Wire-Pin',c:'other',img:B+'WIRE-PIN-INSTRUMENT-SET-AYSAM.webp'},
+  {id:'acetab',n:'Acetabular Cup',c:'hip',img:B+'ACETABULAR-CUP-INSTRUMENT-SET-AYSAM.webp'},
+  {id:'bipolar',n:'Bipolar Cup',c:'hip',img:B+'BIPOLAR-CUP-INSTRUMENT-SET-AYSAM.webp'},
+  {id:'kare',n:'Kare Stem Hip',c:'hip',img:B+'KARE-STEM-INSTRUMENT-SET-AYSAM.webp'},
+  {id:'modular',n:'Modular Stem Hip',c:'hip',img:B+'MODULAR-STEM-HIP-INSTRUMENT-SET-AYSAM.webp'},
+];
+const CATS=[{k:'all',l:'All Sets'},{k:'plate',l:'Plate Systems'},{k:'nail',l:'IM Nails'},{k:'screw',l:'Screws'},{k:'ext',l:'External Fixators'},{k:'spine',l:'Spine'},{k:'hip',l:'Hip Arthroplasty'},{k:'other',l:'Other'}];
+const SEL=new Set(); let curCat='all';
+
+function buildFilters(){
+  document.getElementById('filterBar').innerHTML=CATS.map(c=>`<button class="btn btn-sm ${c.k===curCat?'btn-primary':'btn-secondary'}" onclick="setCat('${c.k}')">${c.l}</button>`).join('');
+}
+function setCat(k){curCat=k;buildFilters();renderInsts()}
+function renderInsts(){
+  const list=curCat==='all'?INSTS:INSTS.filter(i=>i.c===curCat);
+  document.getElementById('instGrid').innerHTML=list.map(i=>`
+    <div class="inst-card ${SEL.has(i.id)?'sel':''}" onclick="toggleInst('${i.id}')">
+      <div class="chk">${SEL.has(i.id)?'✓':''}</div>
+      <div class="inst-img"><img src="${i.img}" alt="${i.n}" onerror="this.parentElement.innerHTML='<div class=no-img>🔩</div>'"></div>
+      <div class="inst-info"><div class="inst-name">${i.n} Instrument Set</div><div class="inst-cat-label">${i.c}</div></div>
+    </div>`).join('');
+}
+function toggleInst(id){SEL.has(id)?SEL.delete(id):SEL.add(id);renderInsts();renderSelTags()}
+function renderSelTags(){
+  const card=document.getElementById('selCard'),tags=document.getElementById('selTags');
+  document.getElementById('selCount').textContent=SEL.size;
+  if(!SEL.size){card.style.display='none';return}
+  card.style.display='block';
+  tags.innerHTML=[...SEL].map(id=>{const i=INSTS.find(x=>x.id===id);return`<span class="pill pill-blue">${i.n}<button onclick="toggleInst('${id}')" style="background:none;border:none;cursor:pointer;margin-left:4px;font-size:11px;color:inherit">×</button></span>`;}).join('');
+}
+buildFilters(); renderInsts();
+
+// ── Surgical Approaches ──
+const AP=[
+  {id:'watson-jones',n:'Watson-Jones (Anterolateral Hip)',r:'Hip',b:'hip femur',
+   pos:'Supine on traction table or standard table, slight lateral tilt (20–30°). Beanbag under ipsilateral buttock. Image intensifier from contralateral side.',
+   dan:'Superior gluteal nerve (enters gluteus medius 5 cm above greater trochanter — limit proximal retraction). Lateral femoral cutaneous nerve (2–3 cm medial to ASIS). Ascending branch of lateral circumflex femoral artery.',
+   lmk:'Anterior superior iliac spine (ASIS), greater trochanter tip, TFL muscle belly, femoral pulse anteriorly.',
+   inc:'Oblique 10–15 cm incision from ASIS curving posteriorly to the anterior aspect of the greater trochanter, following TFL.',
+   sup:'Incise fascia lata in line with TFL. Internervous plane between TFL (sup. gluteal n.) anteriorly and gluteus medius (sup. gluteal n.) posteriorly.',
+   dep:'Retract TFL anteriorly. Tag and open anterior capsule with T or H capsulotomy. Expose femoral neck and head. Tag capsular flaps for repair.',
+   clo:'Repair anterior capsule with heavy absorbable sutures. Close fascia lata, deep dermal, skin. Drain optional.'},
+
+  {id:'post-hip',n:'Posterior Hip (Moore / Southern)',r:'Hip',b:'hip femur posterior',
+   pos:'Lateral decubitus, operative hip up. Rigid posts or beanbag. Hip at 90° to table, knee slightly flexed. Image intensifier from anterior.',
+   dan:'Sciatic nerve (1–2 cm posterior to greater trochanter — identify and protect throughout). Inferior gluteal artery (below piriformis). Medial circumflex femoral artery (supplies femoral head).',
+   lmk:'Posterior superior iliac spine (PSIS), greater trochanter, sciatic nerve (posterior), posterior iliac crest.',
+   inc:'10–15 cm curved incision centered over posterior greater trochanter, extending proximally toward PSIS.',
+   sup:'Incise fascia lata. Split gluteus maximus in line of incision. Identify sciatic nerve before retraction. Tag and detach short external rotators 1.5 cm from femur.',
+   dep:'Release short external rotators with stay sutures. Incise posterior capsule longitudinally. Dislocate with flexion 90°, adduction, internal rotation.',
+   clo:'Repair posterior capsule first. Reattach short external rotators through posterior trochanter drill holes with heavy sutures. Close gluteus maximus, fascia lata, subcutaneous, skin.'},
+
+  {id:'daa',n:'Direct Anterior Approach (Smith-Petersen)',r:'Hip',b:'hip femur anterior daa',
+   pos:'Supine on standard or AMIS traction table. Both legs draped free. Slight Trendelenburg if needed.',
+   dan:'Lateral femoral cutaneous nerve (2–3 cm medial to ASIS — most common complication). Ascending LCFA branches (must ligate). Femoral neurovascular bundle medially.',
+   lmk:'ASIS, TFL muscle belly, sartorius, femoral pulse, inguinal ligament.',
+   inc:'8–12 cm incision 2 cm distal and 3 cm lateral to ASIS, directed toward fibula head.',
+   sup:'True internervous plane: TFL (superior gluteal n.) laterally, sartorius (femoral n.) medially. Ligate ascending LCFA.',
+   dep:'T or H anterior capsulotomy. External rotation and traction to deliver femoral head. Arthroplasty or fracture steps.',
+   clo:'Close anterior capsule. Close fascia lata, subcutaneous, skin. Drain optional.'},
+
+  {id:'lat-femur',n:'Lateral Approach — Femoral Shaft',r:'Femur Shaft',b:'femur shaft lateral',
+   pos:'Lateral decubitus (fractured side up) or supine on traction table. Radiolucent support.',
+   dan:'Perforating branches of profunda femoris (ligate systematically). Sciatic nerve posteriorly. Radial nerve at distal third via lateral intermuscular septum.',
+   lmk:'Greater trochanter, lateral supracondylar ridge, IT band, vastus lateralis.',
+   inc:'Longitudinal lateral incision centered over fracture site.',
+   sup:'Incise IT band. Plane between vastus lateralis and lateral intermuscular septum.',
+   dep:'Elevate vastus lateralis anteriorly (subperiosteal for plating). Ligate perforators. Expose femoral shaft.',
+   clo:'Close vastus lateralis fascia, IT band, subcutaneous, skin.'},
+
+  {id:'ant-tib',n:'Anterior Approach — Tibial Shaft',r:'Tibia',b:'tibia anterior',
+   pos:'Supine, thigh tourniquet, slight external rotation, knee slightly flexed on bolster.',
+   dan:'Anterior tibial artery and deep peroneal nerve (pass through interosseous membrane at proximal third). Superficial peroneal nerve laterally. Compartment pressure.',
+   lmk:'Tibial tuberosity, tibial crest, anterior compartment.',
+   inc:'Longitudinal 1–2 cm lateral to tibial crest along medial border of tibialis anterior.',
+   sup:'Incise deep fascia. Elevate tibialis anterior laterally off tibia (all deep peroneal nerve territory).',
+   dep:'Subperiosteal exposure of tibia. Check compartment pressures.',
+   clo:'Close deep fascia (fasciotomy if needed), subcutaneous, skin.'},
+
+  {id:'postmed-tib',n:'Posteromedial Approach — Tibia',r:'Tibia',b:'tibia posteromedial',
+   pos:'Supine with hip externally rotated, knee flexed (figure-4), or lateral decubitus.',
+   dan:'Great saphenous vein and saphenous nerve anteriorly. Posterior tibial artery, tibial nerve, peroneal artery deep posteriorly.',
+   lmk:'Posteromedial tibial border, posterior medial malleolus, soleus.',
+   inc:'1–2 cm posterior to posteromedial border of tibia.',
+   sup:'Plane: soleus/FDL (tibial n.) posteriorly, tibialis posterior (tibial n.) anteriorly. Retract saphenous structures anterior.',
+   dep:'Reflect soleus from posterior tibia. Protect posterior tibial neurovascular bundle. Subperiosteal exposure.',
+   clo:'Close deep fascia, subcutaneous, skin.'},
+
+  {id:'deltopect',n:'Deltopectoral Approach (Shoulder / Proximal Humerus)',r:'Shoulder',b:'shoulder humerus proximal deltopectoral',
+   pos:'Beach chair 45° or supine with sandbag under scapula. Arm draped free.',
+   dan:'Cephalic vein in deltopectoral groove (preserve laterally). Musculocutaneous nerve (enters coracobrachialis 5–8 cm below coracoid). Axillary nerve (inferior shoulder joint).',
+   lmk:'Coracoid process, cephalic vein, deltopectoral groove, acromion.',
+   inc:'10–15 cm from coracoid distally along deltopectoral groove.',
+   sup:'True internervous plane: deltoid (axillary n.) laterally, pectoralis major (pectoral nn.) medially. Retract cephalic vein laterally.',
+   dep:'Incise clavipectoral fascia lateral to conjoint tendon. Subscapularis tenotomy or split for joint access.',
+   clo:'Repair subscapularis. Close clavipectoral fascia, deltopectoral interval, subcutaneous, skin.'},
+
+  {id:'lat-hum',n:'Lateral Approach — Humeral Shaft',r:'Humerus',b:'humerus shaft lateral radial nerve',
+   pos:'Lateral decubitus or beach chair, arm on padded arm board.',
+   dan:'Radial nerve (pierces lateral intermuscular septum junction of middle/distal thirds, ~10 cm proximal to lateral epicondyle — identify before dissection). Profunda brachii artery.',
+   lmk:'Lateral epicondyle, deltoid insertion, brachioradialis, lateral intermuscular septum.',
+   inc:'Longitudinal lateral incision centered over site of interest.',
+   sup:'Plane: brachioradialis/ECRL (radial n.) anteriorly, triceps (radial n.) posteriorly. Identify radial nerve at septum.',
+   dep:'Protect radial nerve throughout. Elevate brachialis from humerus subperiosteally.',
+   clo:'Close brachialis fascia, subcutaneous, skin. Confirm radial nerve continuity.'},
+
+  {id:'ant-ankle',n:'Anterior Approach — Ankle',r:'Ankle',b:'ankle tibia talus anterior',
+   pos:'Supine, sandbag under ipsilateral buttock, thigh tourniquet, foot flat.',
+   dan:'Superficial peroneal nerve (~7 cm above ankle joint — mark before tourniquet). EHL tendon. Anterior tibial artery between EHL and EDL at joint.',
+   lmk:'Anterior tibial tendon, EHL tendon, extensor retinaculum, medial and lateral malleoli.',
+   inc:'10 cm midway between tibialis anterior and EHL tendons, centered on ankle.',
+   sup:'Develop interval between tibialis anterior and EHL. Retract EHL and neurovascular bundle laterally.',
+   dep:'Incise ankle joint capsule. Expose distal tibia, mortise, talus.',
+   clo:'Close capsule, extensor retinaculum, subcutaneous, skin.'},
+
+  {id:'henry',n:"Henry's Volar Approach — Radius",r:'Forearm',b:'radius forearm wrist volar henry',
+   pos:'Supine, arm on hand table, tourniquet at arm.',
+   dan:'Radial artery (retract laterally throughout). Superficial radial nerve (lateral to artery). PIN (protect by supinating forearm during proximal radius exposure). AIN medially.',
+   lmk:'Biceps tendon, radial pulse, brachioradialis, FCR, radial styloid.',
+   inc:'Along line from biceps tendon to radial styloid, length as needed.',
+   sup:'Internervous plane: brachioradialis (radial n.) laterally, FCR (median n.) medially. Ligate radial recurrent vessels proximally.',
+   dep:'Retract radial artery medially. Supinate forearm to roll PIN clear. Elevate supinator subperiosteally.',
+   clo:'Close deep fascia, subcutaneous, skin. Confirm radial pulse.'},
+
+  {id:'med-para',n:'Medial Parapatellar — Knee',r:'Knee',b:'knee tibia femur parapatellar medial',
+   pos:'Supine, leg free to flex, thigh tourniquet, soft bolster under knee.',
+   dan:'Infrapatellar branch of saphenous nerve (anteromedial — numbness). Medial geniculate vessels. Popliteal artery (flex carefully).',
+   lmk:'Patella, patellar tendon, tibial tuberosity, medial joint line, VMO.',
+   inc:'15–20 cm midline or medial parapatellar, patella to tibial tuberosity.',
+   sup:'Incise medial retinaculum 1 cm medial to patella through medial third of quadriceps tendon. Evert patella laterally.',
+   dep:'Incise synovium. Excise fat pad if needed. Flex knee to expose condyles and tibial plateau.',
+   clo:'Meticulously close medial retinaculum/quadriceps with heavy interrupted sutures. Subcutaneous and skin. Check patellar tracking.'},
+
+  {id:'post-spine',n:'Posterior Midline — Lumbar Spine',r:'Lumbar Spine',b:'spine lumbar posterior midline',
+   pos:'Prone on Jackson table or Wilson frame. Chest rolls. Abdomen free. Head in Mayfield or foam. SCDs on legs.',
+   dan:'Dural tear/CSF leak. Nerve root injury at foramen. Segmental vessels laterally. Wrong-level surgery (confirm with fluoroscopy).',
+   lmk:'Spinous processes (count from L5/S1), iliac crests (L4–5 level), paraspinal musculature.',
+   inc:'Midline over spinous processes of levels to be operated.',
+   sup:'Incise lumbodorsal fascia. Subperiosteal bilateral dissection of paraspinal muscles to laminae and facet joints.',
+   dep:'Laminotomy/laminectomy with Kerrison rongeurs. Epidural hemostasis. Identify and protect nerve roots.',
+   clo:'Close lumbodorsal fascia tightly. Subcutaneous, skin. Drain if needed.'},
+];
+
+let apTO=null, curAP=null;
+function searchAp(v){
+  clearTimeout(apTO);
+  const wrap=document.getElementById('apWrap');
+  if(!v.trim()){wrap.style.display='none';return}
+  apTO=setTimeout(()=>{
+    const q=v.toLowerCase();
+    const res=AP.filter(a=>a.n.toLowerCase().includes(q)||a.r.toLowerCase().includes(q)||a.b.toLowerCase().includes(q));
+    wrap.style.display='block';
+    document.getElementById('apList').innerHTML=res.length?res.map(a=>`
+      <div class="ap-item ${curAP?.id===a.id?'sel':''}" onclick="selectAp('${a.id}')">
+        <div><div class="ap-name">${a.n}</div><div class="ap-region">${a.r}</div></div>
+        ${curAP?.id===a.id?'<span style="color:var(--accent2);font-size:12px;font-weight:600">✓ Selected</span>':''}
+      </div>`).join('')
+      :'<div style="padding:14px;text-align:center;color:var(--text3);font-size:13px">No results — try: hip, femur, tibia, humerus, ankle, knee, spine, radius</div>';
+  },350);
+}
+function selectAp(id){
+  curAP=AP.find(a=>a.id===id);
+  searchAp(document.getElementById('apSrch').value);
+  renderAp();
+}
+function renderAp(){
+  const a=curAP; if(!a) return;
+  const card=document.getElementById('apCard');
+  card.style.display='block';
+  document.getElementById('apTitle').textContent=`${a.n} — ${a.r}`;
+  const secs=[
+    {k:'pos',lbl:'Positioning',dot:'dot-navy',em:'🛏'},
+    {k:'dan',lbl:'Dangers',dot:'dot-red',em:'⚠️'},
+    {k:'lmk',lbl:'Landmarks',dot:'dot-orange',em:'📍'},
+    {k:'inc',lbl:'Skin Incision',dot:'dot-teal',em:'✂️'},
+    {k:'sup',lbl:'Superficial Dissection',dot:'dot-purple',em:'🔪'},
+    {k:'dep',lbl:'Deep Dissection',dot:'dot-blue',em:'🔭'},
+    {k:'clo',lbl:'Wound Closure',dot:'dot-green',em:'🧵'},
+  ];
+  document.getElementById('apContent').innerHTML=`
+    <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Reference: <a href="https://surgeryreference.aofoundation.org/" target="_blank" style="color:var(--accent)">AO Surgery Reference</a></p>
+    <div class="ap-sections">
+      ${secs.map(s=>`<div class="ap-sec"><h4><span class="dot ${s.dot}"></span>${s.em} ${s.lbl}</h4><p>${a[s.k]}</p></div>`).join('')}
+    </div>`;
+  card.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── AI Plan ──
+async function genPlan(){
+  const btn=document.getElementById('genPlanBtn'),ld=document.getElementById('planLoad');
+  const g=id=>document.getElementById(id)?.value||'—';
+  const insts=[...SEL].map(id=>INSTS.find(i=>i.id===id)?.n).filter(Boolean).join(', ')||'standard sets';
+  btn.disabled=true; ld.style.display='flex';
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      model:'claude-sonnet-4-6',max_tokens:1000,
+      messages:[{role:'user',content:`You are an experienced orthopedic surgeon. Write a concise, practical surgical execution plan for:
+Patient: ${g('pt-name')}, ${g('pt-age')}y ${g('pt-sex')}
+Diagnosis: ${g('pt-diagnosis')}
+Procedure: ${g('pt-procedure')}
+Mechanism: ${g('pt-moi')}
+Approach: ${curAP?.n||'TBD'}
+Instruments: ${insts}
+Cover: positioning/setup, fluoroscopy setup and key views, reduction technique, fixation sequence, intraoperative goals, difficulties and contingencies, closure plan. Plain text only, no markdown symbols.`}]})});
+    const d=await r.json();
+    document.getElementById('surgPlan').value=d.content?.map(c=>c.text||'').join('')||'Generation failed. Please write manually.';
+  }catch(e){document.getElementById('surgPlan').value='AI unavailable. Please write your plan manually.';}
+  btn.disabled=false; ld.style.display='none';
+}
+
+// ── AI Rehab ──
+async function genRehab(){
+  const btn=document.getElementById('genRehabBtn'),ld=document.getElementById('rehabLoad');
+  const g=id=>document.getElementById(id)?.value||'—';
+  btn.disabled=true; ld.style.display='flex';
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      model:'claude-sonnet-4-6',max_tokens:1000,
+      messages:[{role:'user',content:`Orthopedic rehabilitation specialist. Phase-based post-op rehab for:
+Diagnosis: ${g('pt-diagnosis')}
+Procedure: ${g('pt-procedure')}
+Patient age: ${g('pt-age')}
+Return EXACTLY:
+===P1===
+[Phase 1 Weeks 0-2: weight bearing status, ROM goals, exercises, precautions, criteria to progress]
+===P2===
+[Phase 2 Weeks 2-6]
+===P3===
+[Phase 3 Weeks 6-12]
+===P4===
+[Phase 4 Months 3-6+]
+Plain text only.`}]})});
+    const d=await r.json();
+    const t=d.content?.map(c=>c.text||'').join('')||'';
+    const pts=t.split(/===P[1-4]===/);
+    if(pts.length>=5) ['rp1','rp2','rp3','rp4'].forEach((id,i)=>{document.getElementById(id).value=pts[i+1].trim()});
+  }catch(e){console.error(e);}
+  btn.disabled=false; ld.style.display='none';
+}
+
+// ── Summary ──
+function g(id){return document.getElementById(id)?.value||'—'}
+function buildSummary(){
+  const insts=[...SEL].map(id=>INSTS.find(i=>i.id===id)?.n).filter(Boolean);
+  const a=curAP;
+  const dotMap={pos:'dot-navy',dan:'dot-red',lmk:'dot-orange',inc:'dot-teal',sup:'dot-purple',dep:'dot-blue',clo:'dot-green'};
+  const emMap={pos:'🛏',dan:'⚠️',lmk:'📍',inc:'✂️',sup:'🔪',dep:'🔭',clo:'🧵'};
+  const lblMap={pos:'Positioning',dan:'Dangers',lmk:'Landmarks',inc:'Skin Incision',sup:'Superficial Dissection',dep:'Deep Dissection',clo:'Wound Closure'};
+  const apHtml=a?`<div class="sum-sec"><h3>Surgical Approach — ${a.n}</h3><div class="ap-sections">${Object.keys(lblMap).map(k=>`<div class="ap-sec"><h4><span class="dot ${dotMap[k]}"></span>${emMap[k]} ${lblMap[k]}</h4><p>${a[k]}</p></div>`).join('')}</div></div>`:
+    `<div class="sum-sec"><h3>Surgical Approach</h3><p style="color:var(--text3);font-size:13px">No approach selected.</p></div>`;
+  document.getElementById('sumContent').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:2px solid var(--accent)">
+      <div><div style="font-size:19px;font-weight:600;color:var(--accent)">Preoperative Surgical Plan</div><div style="font-size:11px;color:var(--text3);margin-top:2px">Generated ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div></div>
+      <div style="text-align:right;font-size:13px;color:var(--text2)"><div style="font-weight:600;font-size:14px;color:var(--text)">${g('pt-name')}</div><div>MRN: ${g('pt-mrn')}</div></div>
+    </div>
+    <div class="sum-sec"><h3>Patient Information</h3><div class="sum-grid">
+      <div class="sf"><span class="sf-lbl">Full Name</span><span class="sf-val">${g('pt-name')}</span></div>
+      <div class="sf"><span class="sf-lbl">MRN</span><span class="sf-val">${g('pt-mrn')}</span></div>
+      <div class="sf"><span class="sf-lbl">Age / Sex</span><span class="sf-val">${g('pt-age')} yrs / ${g('pt-sex')}</span></div>
+      <div class="sf"><span class="sf-lbl">Date of Injury</span><span class="sf-val">${g('pt-doi')}</span></div>
+      <div class="sf"><span class="sf-lbl">Surgery Date</span><span class="sf-val">${g('pt-dos')}</span></div>
+    </div></div>
+    <div class="sum-sec"><h3>Injury &amp; Procedure</h3>
+      <div class="sf" style="margin-bottom:8px"><span class="sf-lbl">Mechanism of Injury</span><span class="sf-val">${g('pt-moi')}</span></div>
+      <div class="sf" style="margin-bottom:8px"><span class="sf-lbl">Diagnosis</span><span class="sf-val">${g('pt-diagnosis')}</span></div>
+      <div class="sf"><span class="sf-lbl">Planned Procedure</span><span class="sf-val">${g('pt-procedure')}</span></div>
+    </div>
+    <div class="sum-sec"><h3>Instrument Sets (${insts.length})</h3>
+      ${insts.length?`<div class="sel-tags">${insts.map(n=>`<span class="pill pill-blue">🔩 ${n}</span>`).join('')}</div>`:`<p style="color:var(--text3);font-size:13px">None selected.</p>`}
+    </div>
+    ${apHtml}
+    <div class="sum-sec"><h3>Surgical Execution Plan</h3><div class="ai-content">${g('surgPlan')}</div></div>
+    <div class="sum-sec"><h3>Postoperative Rehabilitation</h3>
+      ${[['Phase 1 — Acute / Protection (Weeks 0–2)','rp1','ph1'],['Phase 2 — Early Mobilization (Weeks 2–6)','rp2','ph2'],['Phase 3 — Strengthening (Weeks 6–12)','rp3','ph3'],['Phase 4 — Return to Function (Months 3–6+)','rp4','ph4']].map(([t,id,cls])=>`
+        <div class="rph" style="margin-bottom:8px">
+          <div class="rph-head" style="padding:7px 14px"><div class="ph-num ${cls.replace('ph','ph')}">${cls.slice(2)}</div><h3>${t}</h3></div>
+          <div class="rph-body"><div class="ai-content" style="min-height:46px">${g(id)}</div></div>
+        </div>`).join('')}
+    </div>`;
+}
+
+// ── Toast ──
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200)}
+
+// ── PDF Export ──
+async function savePDF(){
+  toast('Generating PDF — please wait...');
+  try{
+    const el=document.getElementById('sumContent');
+    const canvas=await html2canvas(el,{scale:2,useCORS:true,logging:false,backgroundColor:'#ffffff'});
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF({orientation:'p',unit:'mm',format:'a4'});
+    const pageW=pdf.internal.pageSize.getWidth()-20;
+    const pageH=pdf.internal.pageSize.getHeight()-20;
+    const ratio=canvas.width/pageW;
+    let srcY=0;
+    while(srcY<canvas.height){
+      const sliceH=Math.min(pageH*ratio, canvas.height-srcY);
+      const sl=document.createElement('canvas');
+      sl.width=canvas.width; sl.height=sliceH;
+      sl.getContext('2d').drawImage(canvas,0,srcY,canvas.width,sliceH,0,0,canvas.width,sliceH);
+      if(srcY>0) pdf.addPage();
+      pdf.addImage(sl.toDataURL('image/png'),'PNG',10,10,pageW,sliceH/ratio);
+      srcY+=sliceH;
+    }
+    pdf.save(`SurgicalPlan_${g('pt-name').replace(/\s+/g,'_')||'Patient'}_${new Date().toISOString().slice(0,10)}.pdf`);
+    toast('PDF saved!');
+  }catch(e){toast('PDF failed — try Print (Ctrl+P) instead');console.error(e);}
+}
+
+// ── Word Export ──
+function saveWord(){
+  const name=g('pt-name'), insts=[...SEL].map(id=>INSTS.find(i=>i.id===id)?.n).filter(Boolean);
+  const a=curAP;
+  const apBlock=a?`<h2>Surgical Approach — ${a.n} (${a.r})</h2>
+<h3>&#127765; Positioning</h3><div class="sec">${a.pos}</div>
+<h3 style="color:#c0392b">&#9888;&#65039; Dangers</h3><div class="sec" style="border-color:#c0392b">${a.dan}</div>
+<h3>&#128205; Landmarks</h3><div class="sec" style="border-color:#e67e22">${a.lmk}</div>
+<h3>&#9986;&#65039; Skin Incision</h3><div class="sec">${a.inc}</div>
+<h3>&#128298; Superficial Dissection</h3><div class="sec">${a.sup}</div>
+<h3>&#128301; Deep Dissection</h3><div class="sec">${a.dep}</div>
+<h3 style="color:#27ae60">&#129525; Wound Closure</h3><div class="sec" style="border-color:#27ae60">${a.clo}</div>`:'<h2>Surgical Approach</h2><p>None selected.</p>';
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Surgical Plan</title>
+<style>body{font-family:Calibri,sans-serif;font-size:11pt;margin:2.5cm;color:#1a1d23}h1{font-size:18pt;color:#1e4d8c;margin-bottom:4pt}h2{font-size:13pt;color:#1e4d8c;border-bottom:1pt solid #1e4d8c;padding-bottom:3pt;margin-top:16pt}h3{font-size:11pt;font-weight:600;margin-top:10pt}table{width:100%;border-collapse:collapse;margin:6pt 0}td{padding:5pt 8pt;border:0.5pt solid #ddd;font-size:10.5pt;vertical-align:top}.lbl{font-weight:600;width:32%;background:#f5f7fa}.sec{background:#f7f8fa;padding:8pt;margin:4pt 0;border-left:3pt solid #1e4d8c;font-size:10.5pt}.pill{display:inline-block;background:#e8eef7;color:#1e4d8c;padding:2pt 7pt;border-radius:10pt;font-size:10pt;margin:2pt}</style>
+</head><body>
+<h1>Preoperative Surgical Plan</h1>
+<p style="font-size:9pt;color:#888">Generated ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</p>
+<h2>Patient Information</h2>
+<table><tr><td class="lbl">Full Name</td><td>${name}</td><td class="lbl">MRN</td><td>${g('pt-mrn')}</td></tr>
+<tr><td class="lbl">Age / Sex</td><td>${g('pt-age')} yrs / ${g('pt-sex')}</td><td class="lbl">Date of Injury</td><td>${g('pt-doi')}</td></tr>
+<tr><td class="lbl">Surgery Date</td><td>${g('pt-dos')}</td><td class="lbl"></td><td></td></tr></table>
+<h2>Injury &amp; Procedure</h2>
+<table><tr><td class="lbl">Mechanism</td><td colspan="3">${g('pt-moi')}</td></tr>
+<tr><td class="lbl">Diagnosis</td><td colspan="3">${g('pt-diagnosis')}</td></tr>
+<tr><td class="lbl">Procedure</td><td colspan="3">${g('pt-procedure')}</td></tr></table>
+<h2>Instrument Sets</h2>
+<p>${insts.length?insts.map(n=>`<span class="pill">&#128297; ${n}</span>`).join(' '):'<em>None selected.</em>'}</p>
+${apBlock}
+<h2>Surgical Execution Plan</h2><div class="sec" style="white-space:pre-wrap">${g('surgPlan')}</div>
+<h2>Postoperative Rehabilitation</h2>
+<h3>Phase 1 — Acute / Protection (Weeks 0–2)</h3><div class="sec" style="white-space:pre-wrap;border-color:#c0392b">${g('rp1')}</div>
+<h3>Phase 2 — Early Mobilization (Weeks 2–6)</h3><div class="sec" style="white-space:pre-wrap;border-color:#e67e22">${g('rp2')}</div>
+<h3>Phase 3 — Strengthening (Weeks 6–12)</h3><div class="sec" style="white-space:pre-wrap;border-color:#2980b9">${g('rp3')}</div>
+<h3>Phase 4 — Return to Function (Months 3–6+)</h3><div class="sec" style="white-space:pre-wrap;border-color:#27ae60">${g('rp4')}</div>
+</body></html>`;
+  const blob=new Blob(['\ufeff'+html],{type:'application/msword'});
+  const url=URL.createObjectURL(blob);
+  const lnk=document.createElement('a');
+  lnk.href=url; lnk.download=`SurgicalPlan_${name.replace(/\s+/g,'_')||'Patient'}_${new Date().toISOString().slice(0,10)}.doc`;
+  lnk.click(); URL.revokeObjectURL(url);
+  toast('Word document downloaded!');
+}
+
+// ── Local Save / Load ──
+function saveLocal(){
+  const data={
+    v:1, saved:new Date().toISOString(),
+    name:g('pt-name'),mrn:g('pt-mrn'),age:g('pt-age'),sex:g('pt-sex'),doi:g('pt-doi'),dos:g('pt-dos'),
+    moi:g('pt-moi'),diagnosis:g('pt-diagnosis'),procedure:g('pt-procedure'),
+    sel:[...SEL], approach:curAP?.id||null,
+    plan:g('surgPlan'), rp1:g('rp1'),rp2:g('rp2'),rp3:g('rp3'),rp4:g('rp4')
+  };
+  const key='orthoplan_'+Date.now();
+  localStorage.setItem(key,JSON.stringify(data));
+  toast('Plan saved in browser! Use "Load Saved Plan" to restore.');
+}
+function loadLocal(){
+  const keys=Object.keys(localStorage).filter(k=>k.startsWith('orthoplan_')).sort().reverse();
+  if(!keys.length){toast('No saved plans found in this browser.');return}
+  try{
+    const d=JSON.parse(localStorage.getItem(keys[0]));
+    const setField=(id,val)=>{const el=document.getElementById(id);if(el&&val!==undefined)el.value=val};
+    setField('pt-name',d.name); setField('pt-mrn',d.mrn); setField('pt-age',d.age); setField('pt-sex',d.sex);
+    setField('pt-doi',d.doi); setField('pt-dos',d.dos); setField('pt-moi',d.moi);
+    setField('pt-diagnosis',d.diagnosis); setField('pt-procedure',d.procedure);
+    setField('surgPlan',d.plan); setField('rp1',d.rp1); setField('rp2',d.rp2); setField('rp3',d.rp3); setField('rp4',d.rp4);
+    SEL.clear(); (d.sel||[]).forEach(id=>SEL.add(id));
+    curAP=d.approach?AP.find(a=>a.id===d.approach)||null:null;
+    renderInsts(); renderSelTags();
+    toast(`Plan loaded (saved ${new Date(d.saved).toLocaleString()})`);
+  }catch(e){toast('Load failed — saved data may be corrupted.');}
+}
+
+// ── Share ──
+function shareData(){
+  const data={patient:g('pt-name'),mrn:g('pt-mrn'),age:g('pt-age'),sex:g('pt-sex'),
+    doi:g('pt-doi'),dos:g('pt-dos'),moi:g('pt-moi'),diagnosis:g('pt-diagnosis'),procedure:g('pt-procedure'),
+    approach:curAP?.n,instruments:[...SEL].map(id=>INSTS.find(i=>i.id===id)?.n).filter(Boolean),
+    plan:g('surgPlan'),rehab:{p1:g('rp1'),p2:g('rp2'),p3:g('rp3'),p4:g('rp4')}};
+  navigator.clipboard.writeText(JSON.stringify(data,null,2))
+    .then(()=>toast('Plan data copied to clipboard — paste to share or backup!'))
+    .catch(()=>toast('Clipboard access denied. Use PDF or Word export instead.'));
+}
+</script>
+</body>
+</html>
