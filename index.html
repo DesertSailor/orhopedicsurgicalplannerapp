@@ -418,6 +418,42 @@ buildFilters(); renderInsts();
 
 // ── Surgical Approaches ──
 const AP=[
+// --- New Approaches ---
+  {id:'posterolat-ankle',n:'Posterolateral Ankle Approach',r:'Ankle',b:'ankle posterior',
+   pos:'Prone position. Operative leg flexed at 90° if needed.',
+   dan:'Sural nerve and short saphenous vein lie in the superficial layer.',
+   lmk:'Fibula, Achilles tendon.',
+   inc:'10–15 cm longitudinal incision midway between the fibula and the Achilles tendon.',
+   sup:'Dissection between peroneal muscles and Achilles tendon.',
+   dep:'Retract peroneal muscles laterally and flexor hallucis longus medially to expose the posterior tibia/Volkmann fragment.',
+   clo:'Anatomic closure of deep fascia and skin.'},
+
+  {id:'posteromed-ankle',n:'Posteromedial Ankle Approach',r:'Ankle',b:'ankle medial',
+   pos:'Supine with external rotation of the hip or lateral decubitus.',
+   dan:'Great saphenous vein and nerve. Posterior tibial neurovascular bundle.',
+   lmk:'Medial malleolus, medial border of Achilles.',
+   inc:'Longitudinal incision posterior to the medial malleolus.',
+   sup:'Interval between the medial malleolus and the FDL.',
+   dep:'Retract FDL/FHL medially; expose the posterior aspect of the tibia.',
+   clo:'Closure of retinaculum and skin.'},
+
+  {id:'antlat-tib-plat',n:'Anterolateral Approach — Tibial Plateau',r:'Tibia',b:'tibia plateau lateral',
+   pos:'Supine, knee flexed to 90°.',
+   dan:'Common peroneal nerve (protect during submeniscal dissection). Lateral inferior geniculate artery.',
+   lmk:'Gerdy’s tubercle, fibular head, lateral joint line.',
+   inc:'Curved incision from lateral femoral condyle to Gerdy’s tubercle.',
+   sup:'Incision of IT band. Submeniscal arthrotomy.',
+   dep:'Elevate meniscus to inspect lateral plateau. Subperiosteal elevation of the lateral collateral ligament.',
+   clo:'Capsular repair, closure of IT band and skin.'},
+
+  {id:'daa-hip',n:'Direct Anterior Approach (Smith-Petersen)',r:'Hip',b:'hip anterior',
+   pos:'Supine on standard or AMIS table.',
+   dan:'Lateral femoral cutaneous nerve (located 2cm lateral to ASIS). Ascending branch of LCFA (must ligate).',
+   lmk:'ASIS, TFL, Sartorius.',
+   inc:'8–10 cm incision from 2cm distal/lateral to ASIS.',
+   sup:'Internervous plane between TFL (superior gluteal n.) and Sartorius (femoral n.).',
+   dep:'Retract muscles to expose anterior capsule. T-capsulotomy.',
+   clo:'Closure of capsule, fascia, and skin.'},
   {id:'watson-jones',n:'Watson-Jones (Anterolateral Hip)',r:'Hip',b:'hip femur',
    pos:'Supine on traction table or standard table, slight lateral tilt (20–30°). Beanbag under ipsilateral buttock. Image intensifier from contralateral side.',
    dan:'Superior gluteal nerve (enters gluteus medius 5 cm above greater trochanter — limit proximal retraction). Lateral femoral cutaneous nerve (2–3 cm medial to ASIS). Ascending branch of lateral circumflex femoral artery.',
@@ -629,16 +665,32 @@ function g(id){return document.getElementById(id)?.value||'—'}
 function buildSummary(){
   const insts=[...SEL].map(id=>INSTS.find(i=>i.id===id)?.n).filter(Boolean);
   const a=curAP;
+  
+  // Helper to extract image sources from the DOM
+  const getImgs = (id) => {
+    const container = document.getElementById(id);
+    const imgs = Array.from(container.querySelectorAll('img'));
+    return imgs.map(img => `<div class="image-thumb" style="width:80px;height:80px;display:inline-block;margin:5px;"><img src="${img.src}" style="width:100%;height:100%;object-fit:cover;"></div>`).join('');
+  };
+
   const dotMap={pos:'dot-navy',dan:'dot-red',lmk:'dot-orange',inc:'dot-teal',sup:'dot-purple',dep:'dot-blue',clo:'dot-green'};
   const emMap={pos:'🛏',dan:'⚠️',lmk:'📍',inc:'✂️',sup:'🔪',dep:'🔭',clo:'🧵'};
   const lblMap={pos:'Positioning',dan:'Dangers',lmk:'Landmarks',inc:'Skin Incision',sup:'Superficial Dissection',dep:'Deep Dissection',clo:'Wound Closure'};
   const apHtml=a?`<div class="sum-sec"><h3>Surgical Approach — ${a.n}</h3><div class="ap-sections">${Object.keys(lblMap).map(k=>`<div class="ap-sec"><h4><span class="dot ${dotMap[k]}"></span>${emMap[k]} ${lblMap[k]}</h4><p>${a[k]}</p></div>`).join('')}</div></div>`:
     `<div class="sum-sec"><h3>Surgical Approach</h3><p style="color:var(--text3);font-size:13px">No approach selected.</p></div>`;
+  
   document.getElementById('sumContent').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:2px solid var(--accent)">
       <div><div style="font-size:19px;font-weight:600;color:var(--accent)">Preoperative Surgical Plan</div><div style="font-size:11px;color:var(--text3);margin-top:2px">Generated ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div></div>
       <div style="text-align:right;font-size:13px;color:var(--text2)"><div style="font-weight:600;font-size:14px;color:var(--text)">${g('pt-name')}</div><div>MRN: ${g('pt-mrn')}</div></div>
     </div>
+    
+    <div class="sum-sec"><h3>Imaging Files</h3>
+      <div style="margin-bottom:10px"><strong>X-Rays:</strong><br>${getImgs('xg') || 'None'}</div>
+      <div style="margin-bottom:10px"><strong>CT Scans:</strong><br>${getImgs('cg') || 'None'}</div>
+      <div style="margin-bottom:10px"><strong>Other:</strong><br>${getImgs('mg') || 'None'}</div>
+    </div>
+
     <div class="sum-sec"><h3>Patient Information</h3><div class="sum-grid">
       <div class="sf"><span class="sf-lbl">Full Name</span><span class="sf-val">${g('pt-name')}</span></div>
       <div class="sf"><span class="sf-lbl">MRN</span><span class="sf-val">${g('pt-mrn')}</span></div>
