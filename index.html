@@ -316,6 +316,16 @@ function goTo(n){
   document.getElementById('pBar').style.width=(n/7*100)+'%';
   window.scrollTo(0,0);
 }
+// Add this to store images linked to specific approach IDs
+const AP_IMG_STORE = {};
+function addApImg(input, apId) {
+  if (!AP_IMG_STORE[apId]) AP_IMG_STORE[apId] = [];
+  Array.from(input.files).forEach(file => {
+    const url = URL.createObjectURL(file);
+    AP_IMG_STORE[apId].push(url);
+  });
+  renderAp(); // Refresh the display
+}
 
 // ── Imaging ──
 function addImgs(inp,gid,type){
@@ -585,12 +595,14 @@ function selectAp(id){
   searchAp(document.getElementById('apSrch').value);
   renderAp();
 }
-function renderAp(){
-  const a=curAP; if(!a) return;
-  const card=document.getElementById('apCard');
-  card.style.display='block';
-  document.getElementById('apTitle').textContent=`${a.n} — ${a.r}`;
-  const secs=[
+function renderAp() {
+  const a = curAP;
+  if (!a) return;
+  const card = document.getElementById('apCard');
+  card.style.display = 'block';
+  document.getElementById('apTitle').textContent = `${a.n} — ${a.r}`;
+  
+  const secs = [
     {k:'pos',lbl:'Positioning',dot:'dot-navy',em:'🛏'},
     {k:'dan',lbl:'Dangers',dot:'dot-red',em:'⚠️'},
     {k:'lmk',lbl:'Landmarks',dot:'dot-orange',em:'📍'},
@@ -599,10 +611,28 @@ function renderAp(){
     {k:'dep',lbl:'Deep Dissection',dot:'dot-blue',em:'🔭'},
     {k:'clo',lbl:'Wound Closure',dot:'dot-green',em:'🧵'},
   ];
-  document.getElementById('apContent').innerHTML=`
+
+  // Logic to render images
+  const imgs = AP_IMG_STORE[a.id] || [];
+  const imgHtml = `
+    <div style="margin:15px 0;padding:15px;background:var(--surface2);border-radius:var(--radius-sm)">
+      <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:8px">Approach Images</div>
+      <div class="image-grid" id="apImgGrid" style="grid-template-columns:repeat(auto-fill,minmax(100px,1fr))">
+        ${imgs.map((url, i) => `
+          <div class="image-thumb">
+            <img src="${url}">
+            <button class="img-remove" onclick="AP_IMG_STORE['${a.id}'].splice(${i},1);renderAp()">×</button>
+          </div>`).join('')}
+      </div>
+      <button class="btn btn-secondary btn-sm" style="margin-top:10px" onclick="document.getElementById('apFileInp').click()">+ Add Image</button>
+      <input type="file" id="apFileInp" accept="image/*" hidden onchange="addApImg(this, '${a.id}')">
+    </div>`;
+
+  document.getElementById('apContent').innerHTML = `
     <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Reference: <a href="https://surgeryreference.aofoundation.org/" target="_blank" style="color:var(--accent)">AO Surgery Reference</a></p>
+    ${imgHtml}
     <div class="ap-sections">
-      ${secs.map(s=>`<div class="ap-sec"><h4><span class="dot ${s.dot}"></span>${s.em} ${s.lbl}</h4><p>${a[s.k]}</p></div>`).join('')}
+      ${secs.map(s => `<div class="ap-sec"><h4><span class="dot ${s.dot}"></span>${s.em} ${s.lbl}</h4><p>${a[s.k]}</p></div>`).join('')}
     </div>`;
   card.scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -662,7 +692,69 @@ Plain text only.`}]})});
 
 // ── Summary ──
 function g(id){return document.getElementById(id)?.value||'—'}
-function buildSummary(){
+function buildSummary() {
+  const insts = [...SEL].map(id => INSTS.find(i => i.id === id)?.n).filter(Boolean);
+  const a = curAP;
+
+  // Helper to extract image sources from the DOM
+  const getImgs = (id) => {
+    const container = document.getElementById(id);
+    const imgs = Array.from(container.querySelectorAll('img'));
+    return imgs.map(img => `<div class="image-thumb" style="width:80px;height:80px;display:inline-block;margin:5px;"><img src="${img.src}" style="width:100%;height:100%;object-fit:cover;"></div>`).join('');
+  };
+
+  const dotMap = { pos: 'dot-navy', dan: 'dot-red', lmk: 'dot-orange', inc: 'dot-teal', sup: 'dot-purple', dep: 'dot-blue', clo: 'dot-green' };
+  const emMap = { pos: '🛏', dan: '⚠️', lmk: '📍', inc: '✂️', sup: '🔪', dep: '🔭', clo: '🧵' };
+  const lblMap = { pos: 'Positioning', dan: 'Dangers', lmk: 'Landmarks', inc: 'Skin Incision', sup: 'Superficial Dissection', dep: 'Deep Dissection', clo: 'Wound Closure' };
+
+  // New logic to include approach-specific images
+  const apImgsHtml = (a && AP_IMG_STORE[a.id] && AP_IMG_STORE[a.id].length > 0) 
+    ? `<div style="margin:10px 0;"><strong>Approach Reference Images:</strong>
+       <div class="image-grid" style="grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:5px;">
+         ${AP_IMG_STORE[a.id].map(url => `<div class="image-thumb" style="width:80px;height:80px;"><img src="${url}" style="width:100%;height:100%;object-fit:cover;"></div>`).join('')}
+       </div></div>` 
+    : '';
+
+  const apHtml = a ? `<div class="sum-sec"><h3>Surgical Approach — ${a.n}</h3>${apImgsHtml}<div class="ap-sections">${Object.keys(lblMap).map(k => `<div class="ap-sec"><h4><span class="dot ${dotMap[k]}"></span>${emMap[k]} ${lblMap[k]}</h4><p>${a[k]}</p></div>`).join('')}</div></div>` :
+    `<div class="sum-sec"><h3>Surgical Approach</h3><p style="color:var(--text3);font-size:13px">No approach selected.</p></div>`;
+
+  document.getElementById('sumContent').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:2px solid var(--accent)">
+      <div><div style="font-size:19px;font-weight:600;color:var(--accent)">Preoperative Surgical Plan</div><div style="font-size:11px;color:var(--text3);margin-top:2px">Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div></div>
+      <div style="text-align:right;font-size:13px;color:var(--text2)"><div style="font-weight:600;font-size:14px;color:var(--text)">${g('pt-name')}</div><div>MRN: ${g('pt-mrn')}</div></div>
+    </div>
+    
+    <div class="sum-sec"><h3>Imaging Files</h3>
+      <div style="margin-bottom:10px"><strong>X-Rays:</strong><br>${getImgs('xg') || 'None'}</div>
+      <div style="margin-bottom:10px"><strong>CT Scans:</strong><br>${getImgs('cg') || 'None'}</div>
+      <div style="margin-bottom:10px"><strong>Other:</strong><br>${getImgs('mg') || 'None'}</div>
+    </div>
+
+    <div class="sum-sec"><h3>Patient Information</h3><div class="sum-grid">
+      <div class="sf"><span class="sf-lbl">Full Name</span><span class="sf-val">${g('pt-name')}</span></div>
+      <div class="sf"><span class="sf-lbl">MRN</span><span class="sf-val">${g('pt-mrn')}</span></div>
+      <div class="sf"><span class="sf-lbl">Age / Sex</span><span class="sf-val">${g('pt-age')} yrs / ${g('pt-sex')}</span></div>
+      <div class="sf"><span class="sf-lbl">Date of Injury</span><span class="sf-val">${g('pt-doi')}</span></div>
+      <div class="sf"><span class="sf-lbl">Surgery Date</span><span class="sf-val">${g('pt-dos')}</span></div>
+    </div></div>
+    <div class="sum-sec"><h3>Injury &amp; Procedure</h3>
+      <div class="sf" style="margin-bottom:8px"><span class="sf-lbl">Mechanism of Injury</span><span class="sf-val">${g('pt-moi')}</span></div>
+      <div class="sf" style="margin-bottom:8px"><span class="sf-lbl">Diagnosis</span><span class="sf-val">${g('pt-diagnosis')}</span></div>
+      <div class="sf"><span class="sf-lbl">Planned Procedure</span><span class="sf-val">${g('pt-procedure')}</span></div>
+    </div>
+    <div class="sum-sec"><h3>Instrument Sets (${insts.length})</h3>
+      ${insts.length ? `<div class="sel-tags">${insts.map(n => `<span class="pill pill-blue">🔩 ${n}</span>`).join('')}</div>` : `<p style="color:var(--text3);font-size:13px">None selected.</p>`}
+    </div>
+    ${apHtml}
+    <div class="sum-sec"><h3>Surgical Execution Plan</h3><div class="ai-content">${g('surgPlan')}</div></div>
+    <div class="sum-sec"><h3>Postoperative Rehabilitation</h3>
+      ${[['Phase 1 — Acute / Protection (Weeks 0–2)', 'rp1', 'ph1'], ['Phase 2 — Early Mobilization (Weeks 2–6)', 'rp2', 'ph2'], ['Phase 3 — Strengthening (Weeks 6–12)', 'rp3', 'ph3'], ['Phase 4 — Return to Function (Months 3–6+)', 'rp4', 'ph4']].map(([t, id, cls]) => `
+        <div class="rph" style="margin-bottom:8px">
+          <div class="rph-head" style="padding:7px 14px"><div class="ph-num ${cls.replace('ph', 'ph')}">${cls.slice(2)}</div><h3>${t}</h3></div>
+          <div class="rph-body"><div class="ai-content" style="min-height:46px">${g(id)}</div></div>
+        </div>`).join('')}
+    </div>`;
+}
   const insts=[...SEL].map(id=>INSTS.find(i=>i.id===id)?.n).filter(Boolean);
   const a=curAP;
   
@@ -715,7 +807,7 @@ function buildSummary(){
           <div class="rph-body"><div class="ai-content" style="min-height:46px">${g(id)}</div></div>
         </div>`).join('')}
     </div>`;
-}
+
 
 // ── Toast ──
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200)}
